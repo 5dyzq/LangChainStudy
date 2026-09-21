@@ -1,0 +1,36 @@
+project:
+  name: sleep_automl_agent
+  version: v0.1.0
+  task: wake_sleep_binary_classification
+
+data:
+  root_dir: data/data
+  subject_ids: []
+  acceleration_suffix: _acceleration.txt
+  label_suffix: _labeled_sleep.txt
+  sampling_rate_hz: 50
+  epoch_seconds: 30
+  acceleration_columns: [time, x, y, z]
+  label_columns: [time, stage]
+
+labels:
+  wake_stages: [0]
+  sleep_stages: [1, 2, 3, 5]
+  binary_mapping:
+    wake: 0
+    sleep: 1
+
+features:
+  use_axes: [x, y, z, magnitude]
+  include_time_domain: true
+  include_frequency_domain: false
+
+training:
+  model: random_forest
+  test_size: 0.2
+  random_state: 42
+  group_split_by_subject: true
+
+output:
+  experiment_dir: experiments/v0.1.0_baseline
+  report_path: reports/v0.1.0_baseline_report.md

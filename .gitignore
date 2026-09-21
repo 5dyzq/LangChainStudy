@@ -1,0 +1,20 @@
+# .gitignore
+.env
+__pycache__/
+*.pyc
+.venv/
+.idea/
+
+# Large/local experiment artifacts
+data/data/*.txt
+data/processed/
+experiments/*/features.csv
+experiments/*/artifacts/
+reports/*.html
+reports/*.png
+reports/*.jpg
+
+# Keep lightweight documentation and examples in git.
+!data/README.md
+!data/examples/
+!data/examples/.gitkeep
