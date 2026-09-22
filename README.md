@@ -20,6 +20,26 @@ pip install -r requirements.txt
 python -m src.experiment_runner --config configs/experiment.yaml
 ```
 
+## v0.2.0 DeepSeek Report Demo
+
+`v0.2.0` 在 `v0.1.0` 的实验结果基础上接入 DeepSeek，用于完成三个学习目标：
+
+1. 调用 DeepSeek 完成简单问答。
+2. 读取已有特征表和指标，生成数据分析与实验建议。
+3. 输出 Markdown 中间稿和 Word 实验报告。
+
+```powershell
+pip install -r requirements.txt
+python -m src.experiment_runner --config configs/experiment.yaml
+python -m src.v020_report_runner --config configs/experiment.yaml --question "请用一句话解释 Wake/Sleep 二分类实验的目标"
+```
+
+如果只想验证本地流程，不调用 DeepSeek：
+
+```powershell
+python -m src.v020_report_runner --config configs/experiment.yaml --question "请用一句话解释 Wake/Sleep 二分类实验的目标" --offline
+```
+
 ## Project Layout
 
 ```text
@@ -56,9 +76,27 @@ experiment_runner.py
   -> report_generator.py
 ```
 
+`v0.2.0` 的 DeepSeek 报告流程：
+
+```text
+v020_report_runner.py
+  -> 读取 configs/experiment.yaml
+  -> 读取 experiments/v0.1.0_baseline/metrics.json
+  -> dataset_summary.py
+       -> 优先读取 experiments/v0.1.0_baseline/features.csv
+       -> 若不存在，则调用 dataset_builder.py 重新构建
+  -> agents/deepseek_client.py
+  -> agents/data_analysis_agent.py
+  -> agents/experiment_advisor_agent.py
+  -> agents/result_report_agent.py
+  -> docx_report.py
+  -> reports/v0.2.0_deepseek_experiment_report.md
+  -> reports/v0.2.0_deepseek_experiment_report.docx
+```
+
 ## Python Modules
 
-### Baseline Pipeline
+#### Baseline Pipeline
 
 `src/data_loader.py`
 
@@ -104,6 +142,18 @@ logistic_regression
 
 负责根据评估结果生成 Markdown 实验报告。
 
+`src/dataset_summary.py`
+
+负责把窗口级 `features.csv` 压缩成适合喂给 LLM 的结构化摘要，例如被试数、窗口数、Wake/Sleep 分布、特征列和每个被试窗口数。它的定位是“事实统计层”，不要让 LLM 直接猜这些数。
+
+`src/docx_report.py`
+
+负责把 Markdown 报告转换为 `.docx`。当前只支持学习 Demo 所需的标题、列表、段落和代码块；后续如果报告格式更复杂，可以替换为更完整的 Markdown 到 Word 渲染方案。
+
+`src/v020_report_runner.py`
+
+`v0.2.0` 的命令行入口。它不重新训练模型，而是读取 `v0.1.0` 生成的 `features.csv` 和 `metrics.json`，调用 DeepSeek 完成问答、数据分析、实验建议和报告正文生成，最后输出 Markdown 与 Word 报告。
+
 `src/__init__.py`
 
 标记 `src` 是一个 Python 包，并记录当前版本号。
@@ -112,7 +162,7 @@ logistic_regression
 
 `agents/deepseek_client.py`
 
-DeepSeek API 客户端的最小封装，后面用于调用 DeepSeek。
+DeepSeek API 客户端的最小封装。它会从 `.env` 读取 `DEEPSEEK_API_KEY`，默认模型为 `deepseek-flash`，并保留 OpenAI-compatible 的 messages 调用格式，方便后续切换 OpenAI 或迁移到 LangChain。
 
 `agents/data_analysis_agent.py`
 
@@ -125,6 +175,12 @@ DeepSeek API 客户端的最小封装，后面用于调用 DeepSeek。
 `agents/result_report_agent.py`
 
 生成“报告 Agent”的提示词，用于根据配置和指标写实验总结。
+
+## Direct API vs LangChain
+
+当前 `v0.2.0` 先直接调用 DeepSeek 的 OpenAI-compatible API。这样你能先看清楚最基础的请求结构：`messages`、`model`、`temperature`、`headers` 和返回结果。
+
+`v0.3.0` 再切到 LangChain 更合适。LangChain 会把模型调用、PromptTemplate、工具调用、结构化输出、重试和链式组合封装起来，适合做更复杂的 Agent，但对新手来说一上来就用会把“API 原理”和“框架抽象”混在一起。
 
 ### Tests
 

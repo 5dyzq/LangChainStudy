@@ -17,6 +17,7 @@ import os
 from dataclasses import dataclass
 
 import requests
+from dotenv import load_dotenv
 
 
 @dataclass
@@ -36,8 +37,8 @@ class DeepSeekClient:
     """
 
     api_key: str | None = None
-    base_url: str = "https://api.deepseek.com/chat/completions"
-    model: str = "deepseek-chat"
+    base_url: str | None = None
+    model: str | None = None
 
     def chat(self, messages: list[dict], temperature: float = 0.2) -> str:
         """发送多轮消息并返回模型回复文本。
@@ -65,20 +66,43 @@ class DeepSeekClient:
         返回：
             模型生成的文本内容。
         """
+        # 读取项目根目录下的 `.env` 文件
+        load_dotenv()
+
+        # `os.getenv("DEEPSEEK_API_KEY")`：去环境变量（.env 里）读 `DEEPSEEK_API_KEY`
         api_key = self.api_key or os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
             raise RuntimeError("DEEPSEEK_API_KEY is not configured.")
 
+        base_url = self.base_url or os.getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com/chat/completions"
+        model = self.model or os.getenv("DEEPSEEK_MODEL") or "deepseek-flash"
+
         # 这里直接使用 requests，便于学习 API 的原始请求结构。
         # 后续接 LangChain 后，headers/json/错误处理通常由模型封装负责。
+
+        # response = requests.post(...)发起 POST 请求，向 DeepSeek 接口发消息：
+        #
+        # - `base_url`：请求地址
+        # - `headers` 请求头：
+        #   - `Authorization: Bearer {api_key}`：API 鉴权，告诉服务器你是谁
+        #   - `Content-Type: application/json`：告诉服务器，请求体是 JSON 格式
+        # - `json={...}`：请求体，传给大模型的参数
+        #   - `model`：模型名字
+        #   - `messages`：对话历史（用户消息 + 助手历史）
+        #   - `temperature`：温度，控制随机性，越大回答越发散
+        # - `timeout=60`：60 秒超时，60 秒没返回直接报错，防止程序卡死
         response = requests.post(
-            self.base_url,
+            base_url,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": self.model, "messages": messages, "temperature": temperature},
+            json={"model": model, "messages": messages, "temperature": temperature},
             timeout=60,
         )
+
+        # 自动判断 HTTP 返回码：如果是 401（密钥错）、404、500 这类错误码，直接抛出异常，不用自己判断
         response.raise_for_status()
+
+        # 把接口返回的 JSON 字符串，转换成 Python 字典，方便读取里面的数据。
         data = response.json()
 
-        # DeepSeek 使用 OpenAI 兼容的 Chat Completions 响应格式。
+        # 从返回数据里取出第一条模型回答的文本内容，作为函数结果返回。
         return data["choices"][0]["message"]["content"]
