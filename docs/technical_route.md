@@ -25,6 +25,12 @@ Agent：
 - `experiment_advisor_agent.py`
 - `result_report_agent.py`
 
+新增工程模块：
+
+- `dataset_summary.py`: 将 `features.csv` 压缩为适合 LLM 使用的数据摘要。
+- `docx_report.py`: 将 Markdown 报告转为 Word 文档。
+- `v020_report_runner.py`: 串联配置、指标、数据摘要、DeepSeek 调用和报告输出。
+
 ## 阶段 3：LangChain
 
 目标：用 LangChain 管理 LLM 调用、工具调用、Prompt 模板和结构化输出。
